@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { Accessory, Mob, PERK_LABEL } from "@/lib/types";
-import { StatPill } from "./ui";
+import { CODEX } from "@/lib/brand";
+import { StatPill, CodexLine } from "./ui";
+import { Beast } from "./Beast";
+import { Icon } from "./Icon";
 
-export function Shop() {
+export function Bestiary() {
   const s = useStore();
-  const [tab, setTab] = useState<"mobs" | "designs">("mobs");
+  const [tab, setTab] = useState<"beasts" | "marks">("beasts");
   const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
 
   function flash(ok: boolean, text: string) {
@@ -18,7 +21,7 @@ export function Shop() {
   async function tapMob(mob: Mob) {
     if (!mob.owned) {
       const err = await s.buyMob(mob);
-      flash(!err, err ?? `Unlocked ${mob.name}! 🎉`);
+      flash(!err, err ?? `Recruited ${mob.name}`);
     } else {
       s.equipMob(mob.id);
     }
@@ -27,31 +30,35 @@ export function Shop() {
   async function tapAcc(acc: Accessory) {
     if (!acc.owned) {
       const err = await s.buyAccessory(acc);
-      flash(!err, err ?? `Unlocked ${acc.name}! 🎉`);
+      flash(!err, err ?? `Claimed ${acc.name}`);
     } else {
       s.toggleAccessory(acc.id);
     }
   }
 
   return (
-    <div className="flex h-full flex-col bg-bg">
-      <div className="flex items-center px-5 pb-1 pt-3">
-        <h1 className="flex-1 text-xl font-extrabold text-ink">Shop</h1>
-        <StatPill icon="🪙" value={`${s.coins}`} color="#E0911A" />
+    <div className="grain relative flex h-full flex-col bg-bg">
+      <div className="relative z-10 flex items-center px-4 pb-2 pt-3">
+        <h1 className="flex-1 font-display text-xl font-black tracking-[0.18em] text-ink">Bestiary</h1>
+        <StatPill icon="coin" value={`${s.coins}`} tone="#E2B53C" />
       </div>
 
-      <div className="flex gap-6 px-5 pt-2">
-        <Tab label="Mobs" active={tab === "mobs"} onClick={() => setTab("mobs")} />
-        <Tab label="Designs" active={tab === "designs"} onClick={() => setTab("designs")} />
+      <div className="relative z-10 px-4">
+        <CodexLine icon="coin" term="Spoils" text={CODEX.spoils} />
       </div>
 
-      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-3">
-        <div className="grid grid-cols-2 gap-3.5">
-          {tab === "mobs"
+      <div className="relative z-10 flex gap-6 px-5 pt-3">
+        <Tab label="Beasts" active={tab === "beasts"} onClick={() => setTab("beasts")} />
+        <Tab label="Marks" active={tab === "marks"} onClick={() => setTab("marks")} />
+      </div>
+
+      <div className="no-scrollbar relative z-10 min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-3">
+        <div className="grid grid-cols-2 gap-3">
+          {tab === "beasts"
             ? s.mobs.map((mob) => (
                 <Card
                   key={mob.id}
-                  emoji={mob.emoji}
+                  seed={mob.id}
                   name={mob.name}
                   price={mob.price}
                   owned={mob.owned}
@@ -63,7 +70,8 @@ export function Shop() {
             : s.accessories.map((acc) => (
                 <Card
                   key={acc.id}
-                  emoji={acc.emoji}
+                  seed={acc.id}
+                  kind="mark"
                   name={acc.name}
                   price={acc.price}
                   owned={acc.owned}
@@ -77,8 +85,8 @@ export function Shop() {
 
       {toast && (
         <div
-          className="absolute inset-x-6 bottom-24 rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-soft"
-          style={{ background: toast.ok ? "#10A982" : "#FB7185" }}
+          className="absolute inset-x-6 bottom-24 z-20 rounded-xl px-4 py-3 text-center text-sm font-bold text-black shadow-panel"
+          style={{ background: toast.ok ? "#FF6A2B" : "#E5484D" }}
         >
           {toast.text}
         </div>
@@ -91,8 +99,8 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
   return (
     <button
       onClick={onClick}
-      className={`border-b-[3px] pb-2 text-sm font-extrabold ${
-        active ? "border-primary text-ink" : "border-transparent text-inkFaint"
+      className={`border-b-2 pb-2 text-sm font-bold uppercase tracking-wider ${
+        active ? "border-ember text-ink" : "border-transparent text-inkFaint"
       }`}
     >
       {label}
@@ -101,7 +109,8 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 }
 
 function Card({
-  emoji,
+  seed,
+  kind = "beast",
   name,
   price,
   owned,
@@ -109,7 +118,8 @@ function Card({
   perk,
   onClick,
 }: {
-  emoji: string;
+  seed: string;
+  kind?: "beast" | "mark";
   name: string;
   price: number;
   owned: boolean;
@@ -117,26 +127,29 @@ function Card({
   perk: string | null;
   onClick: () => void;
 }) {
-  let pill: { text: string; bg: string; fg: string };
-  if (equipped) pill = { text: "Equipped", bg: "#E3FBF3", fg: "#10A982" };
-  else if (owned) pill = { text: "Equip", bg: "#EFF1F7", fg: "#1F2330" };
-  else pill = { text: price === 0 ? "Free" : `🪙 ${price}`, bg: "#FFB02029", fg: "#E0911A" };
+  let pill: { text: string; bg: string; fg: string; icon?: boolean };
+  if (equipped) pill = { text: "Equipped", bg: "#2A1A12", fg: "#FF6A2B" };
+  else if (owned) pill = { text: "Equip", bg: "#222732", fg: "#ECEEF2" };
+  else pill = { text: price === 0 ? "Free" : `${price}`, bg: "#1E2530", fg: "#E2B53C", icon: true };
 
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center rounded-3xl bg-surface p-3.5 shadow-soft"
-      style={{ border: equipped ? "2.5px solid #1FC99B" : "2.5px solid transparent" }}
+      className="edge flex flex-col items-center rounded-2xl bg-panel p-3"
+      style={equipped ? { borderColor: "#FF6A2B", boxShadow: "0 0 0 1px rgba(255,106,43,0.4)" } : undefined}
     >
-      <div className="py-2 text-5xl">{emoji}</div>
-      <div className="text-center text-sm font-extrabold text-ink">{name}</div>
-      {perk && (
-        <div className="mt-1 rounded-full bg-[#A855F724] px-2 py-0.5 text-[11px] font-bold text-mega">{perk}</div>
+      <Beast seed={seed} kind={kind} size={72} dim={!owned} />
+      <div className="mt-1.5 text-center font-display text-sm font-bold text-ink">{name}</div>
+      {perk ? (
+        <div className="mt-1 rounded-full bg-[#2A1A12] px-2 py-0.5 text-[10px] font-bold text-ember">{perk}</div>
+      ) : (
+        <div className="mt-1 h-[18px]" />
       )}
       <div
-        className="mt-2.5 w-full rounded-full py-2 text-center text-sm font-extrabold"
+        className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg py-2 text-sm font-bold"
         style={{ background: pill.bg, color: pill.fg }}
       >
+        {pill.icon && <Icon name="coin" size={14} />}
         {pill.text}
       </div>
     </button>

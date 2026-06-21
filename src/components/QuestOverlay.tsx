@@ -2,15 +2,19 @@
 
 import { useRef, useState } from "react";
 import { useStore } from "@/lib/store";
-import { ChestReward, DIFFICULTY_META } from "@/lib/types";
-import { DifficultyChip, SquishyButton } from "./ui";
+import { ChestReward, TIER_META } from "@/lib/types";
+import { CODEX, XP_FOR } from "@/lib/brand";
+import { Button } from "./ui";
+import { Beast } from "./Beast";
+import { Rune } from "./Rune";
+import { Icon } from "./Icon";
 
-export function QuestOverlay({
+export function Encounter({
   onClose,
-  onChest,
+  onSpoils,
 }: {
   onClose: () => void;
-  onChest: (reward: ChestReward) => void;
+  onSpoils: (reward: ChestReward) => void;
 }) {
   const s = useStore();
   const node = s.path.find((n) => n.status === "current");
@@ -25,116 +29,124 @@ export function QuestOverlay({
     return null;
   }
 
+  const tier = TIER_META[node.difficulty];
+
   async function submit() {
-    if (!file || busy) return;
+    if (!file || busy || !node) return;
     setBusy(true);
     setMsg(null);
     try {
       const r = await s.submitTodayQuest(file);
       if (r.verified && r.reward) {
-        onChest(r.reward);
+        onSpoils(r.reward);
       } else {
         setBusy(false);
-        setMsg(`Not quite — ${r.reason}`);
+        setMsg(`It escaped — ${r.reason}`);
       }
-    } catch (e) {
+    } catch {
       setBusy(false);
-      setMsg("Something went wrong. Please try again.");
+      setMsg("Something went wrong. Try the strike again.");
     }
   }
 
-  const verifyLabel = node.verify === "ai" ? "🤖 AI checks your video" : "👥 A friend confirms it";
-
   return (
-    <div className="absolute inset-0 z-20 flex flex-col bg-bg">
-      <div className="flex items-center gap-3 px-5 pb-1 pt-4">
-        <button onClick={onClose} className="text-2xl text-ink" aria-label="Back">
-          ←
+    <div className="grain absolute inset-0 z-20 flex flex-col bg-bg">
+      <div className="relative z-10 flex items-center gap-3 px-4 pb-1 pt-4">
+        <button onClick={onClose} className="text-ink" aria-label="Back">
+          <Icon name="back" size={24} />
         </button>
-        <h2 className="text-lg font-extrabold text-ink">Today’s Quest</h2>
+        <h2 className="font-display text-lg font-bold tracking-wide text-ink">The Encounter</h2>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col px-5 pb-5">
-        {/* Quest card */}
-        <div className="rounded-3xl bg-surface p-6 text-center shadow-soft">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col px-4 pb-5">
+        {/* Beast portrait */}
+        <div className="edge relative overflow-hidden rounded-3xl bg-panel p-6 text-center shadow-panel">
           <div
-            className="mx-auto flex h-20 w-20 items-center justify-center rounded-full text-4xl"
-            style={{ background: `${DIFFICULTY_META[node.difficulty].color}24` }}
-          >
-            {node.emoji}
+            className="absolute inset-0 opacity-40"
+            style={{ background: `radial-gradient(60% 50% at 50% 30%, ${tier.color}22, transparent 70%)` }}
+          />
+          <div className="relative flex justify-center">
+            <Beast seed={node.seed} size={132} tint={tier.color} glow />
           </div>
-          <h3 className="mt-4 text-xl font-extrabold text-ink">{node.title}</h3>
-          <div className="mt-3 flex justify-center">
-            <DifficultyChip difficulty={node.difficulty} />
-          </div>
-          <div className="mt-4 inline-block rounded-xl bg-surfaceAlt px-3 py-2 text-sm font-semibold text-inkSoft">
-            {verifyLabel}
+          <h3 className="relative mt-3 font-display text-2xl font-bold text-ink">{node.title}</h3>
+          <div className="relative mt-2 flex items-center justify-center gap-2">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em]"
+              style={{ background: `${tier.color}1f`, color: tier.color }}
+            >
+              <Rune difficulty={node.difficulty} size={14} /> {tier.tier} beast
+            </span>
           </div>
         </div>
 
-        <p className="mt-4 text-center text-sm font-semibold text-inkSoft">
-          🎁 Finish to open a chest — up to {DIFFICULTY_META[node.difficulty].baseCoins * 3} 🪙
-        </p>
+        {/* Verify + spoils preview */}
+        <div className="mt-3 grid grid-cols-2 gap-2.5">
+          <Info icon={node.verify === "ai" ? "skull" : "allies"} title={node.verify === "ai" ? "Warden's Eye" : "Ally witness"}>
+            {node.verify === "ai" ? CODEX.verifyAi : CODEX.verifyFriend}
+          </Info>
+          <Info icon="coin" title="Spoils">
+            up to {tier.baseCoins * 3} coins · {XP_FOR[node.difficulty]} XP
+          </Info>
+        </div>
 
         <div className="flex-1" />
 
-        {/* Video zone */}
-        <input
-          ref={camRef}
-          type="file"
-          accept="video/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
-        />
-        <input
-          ref={galRef}
-          type="file"
-          accept="video/*"
-          className="hidden"
-          onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
-        />
+        {/* Capture */}
+        <input ref={camRef} type="file" accept="video/*" capture="environment" className="hidden"
+          onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
+        <input ref={galRef} type="file" accept="video/*" className="hidden"
+          onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
 
         {file ? (
-          <div className="flex h-28 flex-col items-center justify-center rounded-3xl border-2 border-primary bg-primarySoft">
-            <span className="text-2xl">✅</span>
-            <span className="mt-1 text-sm font-extrabold text-ink">Video ready</span>
-            <button onClick={() => setFile(null)} className="mt-1 text-xs font-bold text-primaryDark underline">
+          <div className="edge flex h-24 flex-col items-center justify-center rounded-2xl bg-emberSoft" style={{ borderColor: "#FF6A2B" }}>
+            <span className="text-ember"><Icon name="check" size={26} strokeWidth={2.4} /></span>
+            <span className="mt-1 text-sm font-bold text-ink">Footage ready</span>
+            <button onClick={() => setFile(null)} className="mt-0.5 text-xs font-bold text-ember underline">
               Replace
             </button>
           </div>
         ) : (
-          <div className="flex h-28 items-center justify-center gap-10 rounded-3xl border-2 border-nodeLockedRing bg-surface">
-            <button onClick={() => camRef.current?.click()} className="flex flex-col items-center">
-              <span className="text-3xl">🎥</span>
-              <span className="mt-1 text-sm font-extrabold text-ink">Film it</span>
+          <div className="edge flex h-24 items-center justify-center gap-12 rounded-2xl bg-panel">
+            <button onClick={() => camRef.current?.click()} className="flex flex-col items-center text-inkSoft">
+              <Icon name="camera" size={26} />
+              <span className="mt-1 text-sm font-bold text-ink">Film it</span>
             </button>
-            <button onClick={() => galRef.current?.click()} className="flex flex-col items-center">
-              <span className="text-3xl">🖼️</span>
-              <span className="mt-1 text-sm font-extrabold text-ink">Upload</span>
+            <div className="h-10 w-px bg-line" />
+            <button onClick={() => galRef.current?.click()} className="flex flex-col items-center text-inkSoft">
+              <Icon name="upload" size={26} />
+              <span className="mt-1 text-sm font-bold text-ink">Upload</span>
             </button>
           </div>
         )}
 
-        {msg && <p className="mt-3 text-center text-sm font-bold text-hard">{msg}</p>}
+        {msg && <p className="mt-3 text-center text-sm font-bold text-dire">{msg}</p>}
 
         <div className="mt-4">
-          <SquishyButton
-            label={file ? "COMPLETE QUEST" : "ADD YOUR VIDEO FIRST"}
-            disabled={!file}
-            onClick={file ? submit : undefined}
-          />
+          <Button label={file ? "Strike" : "Add footage first"} disabled={!file} onClick={file ? submit : undefined} icon={file ? "skull" : undefined} />
         </div>
       </div>
 
       {busy && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-white border-t-transparent" />
-          <p className="mt-4 font-extrabold text-white">
-            {node.verify === "ai" ? "Checking your video with AI…" : "Uploading your video…"}
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm">
+          <Beast seed={node.seed} size={88} tint={tier.color} glow />
+          <div className="mt-5 h-9 w-9 animate-spin rounded-full border-2 border-ember border-t-transparent" />
+          <p className="mt-4 font-display font-bold tracking-wide text-ink">
+            {node.verify === "ai" ? "The Warden's Eye is reading your footage…" : "Sealing the kill…"}
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function Info({ icon, title, children }: { icon: React.ComponentProps<typeof Icon>["name"]; title: string; children: React.ReactNode }) {
+  return (
+    <div className="edge rounded-xl bg-panel p-3">
+      <div className="flex items-center gap-1.5 text-ember">
+        <Icon name={icon} size={15} />
+        <span className="text-[11px] font-bold uppercase tracking-wider text-ink">{title}</span>
+      </div>
+      <p className="mt-1 text-[11px] leading-snug text-inkFaint">{children}</p>
     </div>
   );
 }

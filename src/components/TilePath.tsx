@@ -1,32 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DIFFICULTY_META, QuestNode } from "@/lib/types";
-import { MobAvatar } from "./ui";
+import { QuestNode, TIER_META } from "@/lib/types";
+import { Beast } from "./Beast";
+import { Rune } from "./Rune";
+import { Icon } from "./Icon";
 
-const SPACING = 122;
-const AMP = 70;
-const TOP = 44;
-const BOTTOM = 150;
-const D = 72;
-
-function darken(hex: string, amt = 0.22): string {
-  const c = hex.replace("#", "");
-  const r = Math.round(parseInt(c.slice(0, 2), 16) * (1 - amt));
-  const g = Math.round(parseInt(c.slice(2, 4), 16) * (1 - amt));
-  const b = Math.round(parseInt(c.slice(4, 6), 16) * (1 - amt));
-  return `rgb(${r},${g},${b})`;
-}
+const SPACING = 128;
+const AMP = 64;
+const TOP = 54;
+const BOTTOM = 40;
+const D = 78;
 
 export function TilePath({
   nodes,
-  mobEmoji,
-  accessory,
+  mobSeed,
   onTapCurrent,
 }: {
   nodes: QuestNode[];
-  mobEmoji: string;
-  accessory?: string | null;
+  mobSeed: string;
   onTapCurrent: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,7 +66,15 @@ export function TilePath({
     <div ref={containerRef} className="no-scrollbar relative h-full w-full overflow-y-auto">
       <div className="relative" style={{ height }}>
         <svg width={width} height={height} className="pointer-events-none absolute inset-0">
-          <path d={d} fill="none" stroke="#E0E4EE" strokeWidth={12} strokeLinecap="round" strokeLinejoin="round" />
+          <path d={d} fill="none" stroke="#1B1F27" strokeWidth={14} strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d={d}
+            fill="none"
+            stroke="#2C313C"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeDasharray="2 12"
+          />
         </svg>
 
         {nodes.map((node, i) => (
@@ -90,15 +90,15 @@ export function TilePath({
         {anchor >= 0 && (
           <div
             className="pointer-events-none absolute -translate-x-1/2"
-            style={{ left: pts[anchor].x, top: pts[anchor].y - D / 2 - 70 }}
+            style={{ left: pts[anchor].x, top: pts[anchor].y - D / 2 - 58 }}
           >
-            <div className="flex animate-bob flex-col items-center">
+            <div className="flex animate-float flex-col items-center">
               {nodes[anchor].status === "current" && (
-                <div className="mb-1 rounded-full bg-surface px-3 py-1 text-[13px] font-extrabold text-primaryDark shadow-soft">
-                  GO
+                <div className="mb-1 rounded-md bg-ember px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-black">
+                  You
                 </div>
               )}
-              <MobAvatar emoji={mobEmoji} accessory={accessory} size={46} />
+              <Beast seed={mobSeed} size={42} glow />
             </div>
           </div>
         )}
@@ -120,65 +120,54 @@ function Node({
 }) {
   const left = x - D / 2;
   const top = y - D / 2;
+  const tier = TIER_META[node.difficulty];
 
-  if (node.status === "locked") {
-    return (
-      <Circle left={left} top={top} fill="#E3E6EE" base="#CFD4E0">
-        <span className="text-2xl opacity-50">🔒</span>
-      </Circle>
-    );
-  }
+  const ring =
+    node.status === "current" ? tier.color : node.status === "completed" ? "#2C313C" : "#22262F";
 
-  if (node.status === "completed") {
-    const color = DIFFICULTY_META[node.difficulty].color;
-    return (
-      <Circle left={left} top={top} fill={color} base={darken(color)}>
-        <span className="text-3xl font-black text-white">✓</span>
-      </Circle>
-    );
-  }
-
-  // current
-  return (
-    <Circle left={left} top={top} fill="#1FC99B" base="#10A982" onTap={onTap} halo>
-      <span className="text-2xl">{node.emoji}</span>
-    </Circle>
-  );
-}
-
-function Circle({
-  left,
-  top,
-  fill,
-  base,
-  onTap,
-  halo,
-  children,
-}: {
-  left: number;
-  top: number;
-  fill: string;
-  base: string;
-  onTap?: () => void;
-  halo?: boolean;
-  children: React.ReactNode;
-}) {
   return (
     <div className="absolute" style={{ left, top, width: D, height: D }}>
-      {halo && (
+      {node.status === "current" && (
         <div
-          className="absolute inset-0 animate-pulseRing rounded-full"
-          style={{ background: "#1FC99B" }}
+          className="absolute inset-0 animate-emberPulse rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(255,106,43,0.35), transparent 70%)" }}
         />
       )}
-      <div className="absolute rounded-full" style={{ top: 6, left: 0, width: D, height: D - 6, background: base }} />
+
+      {/* Frame */}
       <div
         onClick={onTap}
-        className="absolute flex items-center justify-center rounded-full"
-        style={{ top: 0, left: 0, width: D, height: D - 6, background: fill, cursor: onTap ? "pointer" : "default" }}
+        className="absolute inset-0 grid place-items-center rounded-full bg-panel"
+        style={{
+          border: `2px solid ${ring}`,
+          cursor: onTap ? "pointer" : "default",
+          boxShadow: node.status === "current" ? `0 0 18px ${tier.color}66` : "0 6px 16px rgba(0,0,0,0.5)",
+        }}
       >
-        {children}
+        <Beast
+          seed={node.seed}
+          size={D - 18}
+          tint={node.status === "locked" ? "#3A4150" : tier.color}
+          dim={node.status !== "current"}
+        />
       </div>
+
+      {/* Status badge */}
+      {node.status === "completed" && (
+        <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-bg text-lesser ring-1 ring-line">
+          <Icon name="check" size={14} strokeWidth={2.6} />
+        </span>
+      )}
+      {node.status === "locked" && (
+        <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-bg text-inkFaint ring-1 ring-line">
+          <Icon name="lock" size={12} strokeWidth={2} />
+        </span>
+      )}
+
+      {/* Always-visible difficulty rune */}
+      <span className="absolute -left-1.5 -top-1.5">
+        <Rune difficulty={node.difficulty} size={22} glow={node.status === "current"} />
+      </span>
     </div>
   );
 }

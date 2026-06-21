@@ -4,28 +4,29 @@ export type NodeStatus = "completed" | "current" | "locked";
 export type Rarity = "rare" | "mega" | "ultra";
 export type MobPerk = "bonusCoins" | "streakShield" | null;
 
+/** A node on the Trail. `seed` drives its sigil-beast (no emoji). */
 export interface QuestNode {
   day: number;
   title: string;
-  emoji: string;
+  seed: string;
   difficulty: Difficulty;
   verify: VerifyKind;
   status: NodeStatus;
 }
 
+/** A recruitable creature in the Bestiary. Its sigil is drawn from `id`. */
 export interface Mob {
   id: string;
   name: string;
-  emoji: string;
   price: number;
   perk: MobPerk;
   owned: boolean;
 }
 
+/** A cosmetic Mark. Its sigil glyph is drawn from `id`. */
 export interface Accessory {
   id: string;
   name: string;
-  emoji: string;
   price: number;
   owned: boolean;
 }
@@ -33,11 +34,12 @@ export interface Accessory {
 export interface ChestReward {
   rarity: Rarity;
   coins: number;
+  xp: number;
 }
 
 export interface Friend {
   name: string;
-  emoji: string;
+  seed: string;
   streak: number;
   finishedToday: boolean;
   isYou: boolean;
@@ -46,37 +48,38 @@ export interface Friend {
 export interface FriendRequest {
   id: string;
   name: string;
-  emoji: string;
+  seed: string;
 }
 
 export type ActivityKind = "finished" | "passed_you" | "milestone" | "added_you";
 
 export interface FriendActivity {
   name: string;
-  emoji: string;
+  seed: string;
   kind: ActivityKind;
   detail: string;
   minutesAgo: number;
 }
 
-export const DIFFICULTY_META: Record<
+/** Difficulty → tier identity (rune colour + name). The danger language. */
+export const TIER_META: Record<
   Difficulty,
-  { label: string; color: string; baseCoins: number }
+  { tier: string; color: string; baseCoins: number }
 > = {
-  easy: { label: "Easy", color: "#34D399", baseCoins: 20 },
-  medium: { label: "Medium", color: "#FBBF24", baseCoins: 35 },
-  hard: { label: "Hard", color: "#FB7185", baseCoins: 55 },
+  easy: { tier: "Lesser", color: "#46C26A", baseCoins: 20 },
+  medium: { tier: "Greater", color: "#E2B53C", baseCoins: 35 },
+  hard: { tier: "Dire", color: "#E5484D", baseCoins: 55 },
 };
 
 export const RARITY_META: Record<Rarity, { label: string; color: string }> = {
-  rare: { label: "RARE", color: "#3B82F6" },
-  mega: { label: "MEGA", color: "#A855F7" },
-  ultra: { label: "ULTRA", color: "#F59E0B" },
+  rare: { label: "RARE", color: "#5B8CFF" },
+  mega: { label: "MEGA", color: "#B06BFF" },
+  ultra: { label: "ULTRA", color: "#FF6A2B" },
 };
 
 export const PERK_LABEL: Record<NonNullable<MobPerk>, string> = {
-  bonusCoins: "+10% coins",
-  streakShield: "1 free freeze / wk",
+  bonusCoins: "+10% spoils",
+  streakShield: "1 free Ward / wk",
 };
 
 /** Weekday → difficulty. JS getDay(): 0=Sun … 6=Sat. */

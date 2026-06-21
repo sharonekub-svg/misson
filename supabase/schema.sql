@@ -17,6 +17,7 @@ create table profiles (
   equipped_mob_id text not null default 'cat',
   equipped_accessory_id text,
   coins int not null default 100,
+  xp int not null default 0,
   streak int not null default 0,
   freezes_left int not null default 3,
   last_completed_date date,
@@ -54,6 +55,7 @@ create table user_quests (
   status quest_status not null default 'pending',
   rarity rarity,
   coins_awarded int,
+  xp_awarded int,
   video_path text,
   verified boolean not null default false,
   verify_reason text,
@@ -164,7 +166,7 @@ declare
   q user_quests; prof profiles;
   r double precision := random();
   bonus double precision; won_rarity rarity; base int; mult double precision;
-  coins_won int; new_streak int; f record;
+  coins_won int; xp_won int; new_streak int; f record;
 begin
   if uid is null then raise exception 'not authenticated'; end if;
   select * into q from user_quests where id = p_quest_id and user_id = uid;
@@ -184,15 +186,18 @@ begin
   coins_won := round(base * mult);
   if prof.equipped_mob_id in ('fox', 'elephant') then coins_won := round(coins_won * 1.10); end if;
 
+  -- XP scales with the beast's tier (harder beasts give more).
+  xp_won := case q.difficulty when 'easy' then 10 when 'medium' then 20 else 35 end;
+
   if prof.last_completed_date = current_date then new_streak := prof.streak;
   elsif prof.last_completed_date = current_date - 1 then new_streak := prof.streak + 1;
   else new_streak := 1; end if;
 
-  update profiles set coins = coins + coins_won, streak = new_streak,
+  update profiles set coins = coins + coins_won, xp = xp + xp_won, streak = new_streak,
     last_completed_date = current_date where id = uid;
 
   update user_quests set status = 'completed', rarity = won_rarity, coins_awarded = coins_won,
-    video_path = p_video_path, verified = true, verify_reason = p_verify_reason
+    xp_awarded = xp_won, video_path = p_video_path, verified = true, verify_reason = p_verify_reason
     where id = q.id returning * into q;
 
   for f in

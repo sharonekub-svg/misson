@@ -3,13 +3,16 @@
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { PERK_LABEL } from "@/lib/types";
-import { MobAvatar } from "./ui";
+import { CODEX, rankFromXp } from "@/lib/brand";
+import { CodexLine, SectionLabel } from "./ui";
+import { Beast } from "./Beast";
+import { Icon, IconName } from "./Icon";
 
-export function Profile() {
+export function Den() {
   const s = useStore();
   const mob = s.mobs.find((m) => m.id === s.equippedMobId);
-  const acc = s.accessories.find((a) => a.id === s.equippedAccessoryId)?.emoji ?? null;
   const [copied, setCopied] = useState(false);
+  const rank = rankFromXp(s.xp);
 
   function copyUsername() {
     navigator.clipboard?.writeText(s.username).then(
@@ -22,57 +25,82 @@ export function Profile() {
   }
 
   return (
-    <div className="no-scrollbar h-full overflow-y-auto bg-bg px-5 pb-24 pt-3">
-      <h1 className="text-xl font-extrabold text-ink">Your Mob</h1>
+    <div className="grain relative h-full">
+      <div className="no-scrollbar relative z-10 h-full overflow-y-auto px-4 pb-24 pt-3">
+        <h1 className="font-display text-xl font-black tracking-[0.18em] text-ink">The Den</h1>
 
-      <div className="mt-5 flex justify-center">
-        <MobAvatar emoji={mob?.emoji ?? "🐱"} accessory={acc} size={150} />
-      </div>
-      <h2 className="mt-3 text-center text-xl font-extrabold text-ink">{mob?.name ?? "Pixel Cat"}</h2>
-      {mob?.perk && (
-        <div className="mt-1.5 flex justify-center">
-          <span className="rounded-full bg-[#A855F724] px-3 py-1 text-xs font-bold text-mega">
-            Perk: {PERK_LABEL[mob.perk]}
-          </span>
+        <div className="mt-4 flex justify-center">
+          <div className="relative">
+            <Beast seed={s.equippedMobId} size={148} glow />
+          </div>
         </div>
-      )}
+        <h2 className="mt-3 text-center font-display text-2xl font-bold text-ink">{mob?.name ?? "Cinderpaw"}</h2>
+        {mob?.perk && (
+          <div className="mt-1.5 flex justify-center">
+            <span className="rounded-full bg-[#2A1A12] px-3 py-1 text-xs font-bold text-ember">
+              Boon: {PERK_LABEL[mob.perk]}
+            </span>
+          </div>
+        )}
 
-      {/* Username share */}
-      <button
-        onClick={copyUsername}
-        className="mx-auto mt-4 flex items-center gap-2 rounded-full bg-surface px-4 py-2 text-sm font-bold text-inkSoft shadow-soft"
-      >
-        <span className="text-inkFaint">@{s.username}</span>
-        <span className="text-primaryDark">{copied ? "Copied!" : "Tap to copy"}</span>
-      </button>
+        <button
+          onClick={copyUsername}
+          className="edge mx-auto mt-4 flex items-center gap-2 rounded-full bg-panel px-4 py-2 text-sm font-medium"
+        >
+          <span className="text-inkFaint">@{s.username}</span>
+          <span className="text-ember">
+            {copied ? "Copied" : <Icon name="copy" size={14} />}
+          </span>
+        </button>
 
-      <div className="mt-6 grid grid-cols-3 gap-3">
-        <Stat icon="🔥" value={`${s.streak}`} label="Day streak" color="#FF7A45" />
-        <Stat icon="🪙" value={`${s.coins}`} label="Coins" color="#E0911A" />
-        <Stat icon="❄️" value={`${s.freezesLeft}`} label="Freezes" color="#3B82F6" />
-      </div>
+        {/* Rank bar */}
+        <div className="edge mt-6 rounded-2xl bg-panel p-4">
+          <div className="flex items-end justify-between">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-inkFaint">Rank {rank.level}</div>
+              <div className="font-display text-lg font-bold text-ink">{rank.title}</div>
+            </div>
+            <div className="text-right text-[11px] font-bold text-inkFaint">
+              {rank.intoLevel}/{rank.span} XP
+              <div className="text-ember">to {rank.nextTitle}</div>
+            </div>
+          </div>
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-raised">
+            <div
+              className="h-full rounded-full bg-ember transition-all"
+              style={{ width: `${Math.round(rank.pct * 100)}%`, boxShadow: "0 0 10px rgba(255,106,43,0.6)" }}
+            />
+          </div>
+        </div>
 
-      <div className="mt-6 flex items-center gap-4 rounded-3xl bg-surface p-5 shadow-soft">
-        <span className="text-2xl">❄️</span>
-        <div>
-          <div className="text-sm font-extrabold text-ink">Streak freezes</div>
-          <p className="text-sm font-semibold text-inkSoft">
-            You get 3 every month. Use one to save your streak on a missed day.
-          </p>
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <Stat icon="flame" value={`${s.streak}`} label="Flame" tone="#FF6A2B" />
+          <Stat icon="coin" value={`${s.coins}`} label="Spoils" tone="#E2B53C" />
+          <Stat icon="ward" value={`${s.freezesLeft}`} label="Wards" tone="#5B8CFF" />
+        </div>
+
+        <div className="mt-6 space-y-2.5">
+          <SectionLabel>Codex</SectionLabel>
+          <CodexLine icon="flame" term="Flame" text={CODEX.flame} />
+          <CodexLine icon="ward" term="Ward" text={CODEX.ward} />
+          <CodexLine icon="xp" term="XP" text={CODEX.xp} />
+          <CodexLine icon="den" term="Rank" text={CODEX.rank} />
         </div>
       </div>
     </div>
   );
 }
 
-function Stat({ icon, value, label, color }: { icon: string; value: string; label: string; color: string }) {
+function Stat({ icon, value, label, tone }: { icon: IconName; value: string; label: string; tone: string }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl bg-surface py-4 shadow-soft">
-      <span className="text-xl">{icon}</span>
-      <span style={{ color }} className="mt-1 text-lg font-extrabold">
+    <div className="edge flex flex-col items-center rounded-xl bg-panel py-4">
+      <span style={{ color: tone }}>
+        <Icon name={icon} size={20} />
+      </span>
+      <span style={{ color: tone }} className="mt-1 font-display text-lg font-black tabular-nums">
         {value}
       </span>
-      <span className="text-xs font-bold text-inkFaint">{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-wider text-inkFaint">{label}</span>
     </div>
   );
 }
