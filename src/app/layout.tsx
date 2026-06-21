@@ -1,28 +1,28 @@
 import type { Metadata, Viewport } from "next";
-import { Cinzel, Inter } from "next/font/google";
+import { Poppins, Inter } from "next/font/google";
 import "./globals.css";
 
-const cinzel = Cinzel({
+const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["600", "700", "800", "900"],
-  variable: "--font-cinzel",
+  weight: ["600", "700", "800"],
+  variable: "--font-poppins",
 });
 
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
-  title: "BOUNTY — Hunt the day",
+  title: "Quest — One mission a day",
   description:
-    "A field bestiary. Every day a beast surfaces — fell it with a real-world challenge on camera, claim the spoils, keep your Flame lit.",
+    "Get one fun mission a day, film yourself doing it, keep your streak alive, and grow your buddy. A friendly AI checks your clip.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "BOUNTY",
+    statusBarStyle: "default",
+    title: "Quest",
   },
   icons: {
     icon: "/icon.svg",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0D0E12",
+  themeColor: "#3B6EF6",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -40,7 +40,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${cinzel.variable} ${inter.variable}`}>
+    <html lang="en" className={`${poppins.variable} ${inter.variable}`}>
       <body className="font-sans antialiased">{children}</body>
     </html>
   );

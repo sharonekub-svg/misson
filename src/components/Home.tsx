@@ -2,61 +2,60 @@
 
 import { useStore } from "@/lib/store";
 import { TIER_META } from "@/lib/types";
-import { APP_NAME, CODEX } from "@/lib/brand";
+import { APP_NAME, APP_TAGLINE, CODEX } from "@/lib/brand";
 import { Button, StatPill } from "./ui";
 import { Beast } from "./Beast";
 import { Rune } from "./Rune";
 import { TilePath } from "./TilePath";
 
-export function Trail({ onFace }: { onFace: () => void }) {
+export function Today({ onStart }: { onStart: () => void }) {
   const s = useStore();
   const today = s.path.find((n) => n.status === "current");
-  const felled = s.todayCompleted || !today;
+  const done = s.todayCompleted || !today;
   const tier = today ? TIER_META[today.difficulty] : TIER_META.easy;
 
   return (
-    <div className="grain relative flex h-full flex-col bg-bg">
-      <header className="relative z-10 flex items-center gap-2 px-4 pb-3 pt-3">
+    <div className="sky relative flex h-full flex-col">
+      <header className="relative z-10 flex items-center gap-2 px-4 pb-2 pt-3">
         <div className="min-w-0 flex-1">
-          <h1 className="font-display text-xl font-black tracking-[0.22em] text-ink">{APP_NAME}</h1>
-          <p className="truncate text-xs font-medium uppercase tracking-wider text-inkFaint">The Trail</p>
+          <h1 className="font-display text-xl font-extrabold text-ink">{APP_NAME}</h1>
+          <p className="truncate text-xs font-semibold text-inkFaint">{APP_TAGLINE}</p>
         </div>
-        <StatPill icon="flame" value={`${s.streak}`} tone="#FF6A2B" />
-        <StatPill icon="coin" value={`${s.coins}`} tone="#E2B53C" />
-        <StatPill icon="ward" value={`${s.freezesLeft}`} tone="#5B8CFF" />
+        <StatPill icon="flame" value={`${s.streak}`} tone="#FF8A3D" />
+        <StatPill icon="coin" value={`${s.coins}`} tone="#D88A12" />
+        <StatPill icon="snow" value={`${s.freezesLeft}`} tone="#59C3F5" />
       </header>
 
-      <div className="fog relative min-h-0 flex-1">
-        <TilePath nodes={s.path} mobSeed={s.equippedMobId} onTapCurrent={() => !felled && onFace()} />
+      <div className="relative min-h-0 flex-1">
+        <TilePath nodes={s.path} mobSeed={s.equippedMobId} onTapCurrent={() => !done && onStart()} />
       </div>
 
-      {/* Mission of the Day — the awake beast. */}
+      {/* Today's mission card */}
       <div className="relative z-10 px-3 pb-3">
         <div
-          className="edge animate-rise rounded-2xl bg-panel p-3 shadow-panel"
-          style={felled ? undefined : { boxShadow: "0 0 0 1px rgba(255,106,43,0.35), 0 10px 30px rgba(0,0,0,0.5)" }}
+          className="animate-countUp rounded-3xl bg-surface p-3 shadow-card"
+          style={done ? { border: "1px solid #E3E9F6" } : { border: "2px solid #3B6EF6" }}
         >
           <div className="flex items-center gap-3">
-            <div className="relative shrink-0">
-              <Beast seed={today?.seed ?? "cinder"} size={56} tint={tier.color} glow={!felled} dim={felled} />
-            </div>
+            <Beast seed={today?.seed ?? "buddy"} size={56} tint={tier.color} glow={!done} dim={done} />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-inkFaint">
-                <Rune difficulty={today?.difficulty ?? "easy"} size={12} />
-                {tier.tier} · Mission of the Day
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-inkFaint">
+                <Rune difficulty={today?.difficulty ?? "easy"} size={14} />
+                {tier.tier} · Today’s mission
               </div>
-              <h2 className="truncate font-display text-base font-bold text-ink">
-                {felled ? "All beasts felled today" : today?.title}
+              <h2 className="truncate font-display text-base font-extrabold text-ink">
+                {done ? "All done for today! 🎉" : today?.title}
               </h2>
               <p className="truncate text-[11px] text-inkFaint">{CODEX.mission}</p>
             </div>
           </div>
           <div className="mt-3">
             <Button
-              label={felled ? "Come back tomorrow" : "Face the beast"}
-              icon={felled ? "check" : "play"}
-              disabled={felled}
-              onClick={felled ? undefined : onFace}
+              label={done ? "See you tomorrow" : "Start mission"}
+              icon={done ? "check" : "play"}
+              variant={done ? "soft" : "primary"}
+              disabled={done}
+              onClick={done ? undefined : onStart}
             />
           </div>
         </div>

@@ -1,71 +1,67 @@
 // ─────────────────────────────────────────────────────────────────────────
-// BOUNTY — central brand + copy + progression logic.
+// Brand + copy + progression. One friendly daily-mission game.
 //
-// The whole identity is anchored here. The app is a *field bestiary*: you are a
-// Warden, and every day a beast surfaces (your "Mission of the Day"). You face
-// it by completing a real-world challenge on camera, fell it, and claim spoils.
-//
-// One constant owns the brand name — swap it here and it changes everywhere.
+// You get one mission a day, film yourself doing it, a friendly AI gives you
+// the ✓ (and it's generous — close counts), you keep your streak alive and
+// grow your buddy. Everything player-facing lives here so the tone stays
+// consistent and the name is a one-line swap.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { Difficulty } from "./types";
 
-/** The brand. Mission framing kept; sounds like a game, not an edu-app. */
-export const APP_NAME = "BOUNTY";
-export const APP_TAGLINE = "Hunt the day.";
+/** The brand. Friendly, light, "today's mission" energy. */
+export const APP_NAME = "Quest";
+export const APP_TAGLINE = "One mission a day.";
 
-/** Every mechanic gets a permanent, 10-second-readable line in the UI. */
+/** Every mechanic gets a permanent, plain-language line in the UI. */
 export const CODEX = {
-  spoils: "Spoils. Spend them in the Bestiary to recruit new beasts.",
-  flame: "Days hunted in a row. Keep it lit for bigger spoils.",
-  ward: "Protects your Flame for one missed day. You get 3 a month.",
-  xp: "Earned by felling beasts. Harder beasts give more.",
-  rank: "Raises your rank and unlocks tougher beasts.",
-  rewards: "Every felled beast drops coins + XP. Dire beasts drop rarer kin.",
-  mission: "The beast that surfaced today. Fell it before midnight.",
-  verifyAi: "The Warden's eye reads your footage to confirm the kill.",
-  verifyFriend: "An ally must witness and confirm this kill.",
+  coins: "Spend them in the Shop to unlock new buddies.",
+  streak: "Days in a row. Keep it going for bigger rewards!",
+  freeze: "Saves your streak on a day you miss. You get 3 a month.",
+  xp: "Earned every mission. Harder missions give more.",
+  level: "Level up to unlock tougher missions and new buddies.",
+  rewards: "Every mission gives coins + XP — and a chance at something rare.",
+  mission: "Your mission for today. Finish it before midnight!",
+  // The thing the user was confused about — spelled out, friendly, reassuring.
+  howAiWorks:
+    "Just film yourself doing it. Our friendly AI peeks at a few moments from your clip and gives you the ✓. It's generous — if you clearly gave it a go, it counts. 😊",
 } as const;
 
-/** XP awarded for felling a beast of each tier. Harder beasts give more. */
+/** XP awarded for finishing a mission of each difficulty. */
 export const XP_FOR: Record<Difficulty, number> = {
   easy: 10,
   medium: 20,
   hard: 35,
 };
 
-/** Rank titles climb as XP accrues. The last entry covers everything beyond. */
-const RANK_TITLES = [
-  "Novice",
-  "Tracker",
-  "Hunter",
-  "Ranger",
-  "Warden",
-  "Beastbound",
-  "Dread Warden",
-  "Mythic Warden",
+/** Friendly level titles that climb as XP accrues. */
+const LEVEL_TITLES = [
+  "Newbie",
+  "Rookie",
+  "Explorer",
+  "Achiever",
+  "Champion",
+  "Hero",
+  "Legend",
+  "Superstar",
 ];
 
-/** XP needed to clear level n (1-indexed): grows so later ranks cost more. */
+/** XP needed to clear level n (1-indexed): grows so later levels cost more. */
 function spanForLevel(level: number): number {
   return 80 + (level - 1) * 40;
 }
 
-export interface RankInfo {
+export interface LevelInfo {
   level: number;
   title: string;
-  /** XP earned inside the current level. */
   intoLevel: number;
-  /** XP span of the current level. */
   span: number;
-  /** Title of the next rank (what the bar is climbing toward). */
   nextTitle: string;
-  /** 0..1 progress through the current level. */
   pct: number;
 }
 
-/** Derive rank/level from a total XP figure. Pure + deterministic. */
-export function rankFromXp(totalXp: number): RankInfo {
+/** Derive level from total XP. Pure + deterministic. */
+export function levelFromXp(totalXp: number): LevelInfo {
   let level = 1;
   let remaining = Math.max(0, Math.floor(totalXp));
   while (remaining >= spanForLevel(level)) {
@@ -73,8 +69,7 @@ export function rankFromXp(totalXp: number): RankInfo {
     level += 1;
   }
   const span = spanForLevel(level);
-  const titleFor = (lvl: number) =>
-    RANK_TITLES[Math.min(lvl - 1, RANK_TITLES.length - 1)];
+  const titleFor = (lvl: number) => LEVEL_TITLES[Math.min(lvl - 1, LEVEL_TITLES.length - 1)];
   return {
     level,
     title: titleFor(level),

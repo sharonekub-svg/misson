@@ -1,44 +1,64 @@
-/** Grab a single JPEG frame from a video file and return it as base64 (no
- *  data-URL prefix). Used to send the AI verifier something to look at. */
-export async function extractFrameBase64(file: Blob): Promise<string | null> {
+/** Grab several evenly-spaced JPEG frames from a video and return them as
+ *  base64 (no data-URL prefix). Sending a few moments — not one still — lets
+ *  the AI actually see an action happen, so it can verify movement-based
+ *  missions, not just static ones. */
+export async function extractFramesBase64(file: Blob, count = 4): Promise<string[]> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const video = document.createElement("video");
-    video.preload = "metadata";
+    video.preload = "auto";
     video.muted = true;
     video.playsInline = true;
     video.src = url;
 
-    const done = (value: string | null) => {
+    const frames: string[] = [];
+    const finish = () => {
       URL.revokeObjectURL(url);
-      resolve(value);
+      resolve(frames);
     };
 
     video.onloadeddata = () => {
-      const seekTo = Math.min(0.6, (video.duration || 1) / 2);
+      const duration = video.duration && isFinite(video.duration) ? video.duration : 1;
+      // Sample across the clip, skipping the very start/end.
+      const times: number[] = [];
+      for (let i = 0; i < count; i++) {
+        times.push(Math.max(0.05, ((i + 0.5) / count) * duration));
+      }
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      let idx = 0;
+
       const grab = () => {
         try {
+          if (!ctx) return finish();
           const w = Math.min(512, video.videoWidth || 512);
           const ratio = video.videoHeight && video.videoWidth ? video.videoHeight / video.videoWidth : 1;
-          const canvas = document.createElement("canvas");
           canvas.width = w;
           canvas.height = Math.round(w * ratio);
-          const ctx = canvas.getContext("2d");
-          if (!ctx) return done(null);
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
-          done(dataUrl.split(",")[1] ?? null);
+          const b64 = canvas.toDataURL("image/jpeg", 0.6).split(",")[1];
+          if (b64) frames.push(b64);
         } catch {
-          done(null);
+          /* skip this frame */
+        }
+        idx += 1;
+        if (idx >= times.length) return finish();
+        seekNext();
+      };
+
+      const seekNext = () => {
+        try {
+          video.currentTime = times[idx];
+        } catch {
+          grab();
         }
       };
+
       video.onseeked = grab;
-      try {
-        video.currentTime = seekTo;
-      } catch {
-        grab();
-      }
+      seekNext();
     };
-    video.onerror = () => done(null);
+
+    video.onerror = () => finish();
   });
 }

@@ -1,43 +1,50 @@
-# BOUNTY ⚔️
+# Quest 🎯
 
-**Hunt the day.** A field bestiary disguised as a habit game.
+**One mission a day.** A friendly daily-mission game.
 
-You are a **Warden**. Every day a beast surfaces — your **Mission of the Day**.
-You face it by completing a real-world challenge on camera, fell it, and claim
-the spoils. Keep your **Flame** lit, climb the ranks, and grow your Bestiary.
+Every day you get one fun mission. Film yourself doing it, a friendly AI gives
+you the ✓ (it's generous — close counts 😊), you keep your streak alive, earn
+coins + XP, level up, and unlock cute buddies.
 
-**Art direction:** *inked grimoire* — obsidian + a single ember accent,
-engraved grain, faceted difficulty runes, and hand-coded **sigil-beasts**
-(original heraldic emblems generated deterministically from a seed — no emoji
-anywhere). The whole brand lives in one constant: [`src/lib/brand.ts`](src/lib/brand.ts).
+**Look & feel:** light, friendly, **navy blue**. Round big-eyed buddies drawn
+from scratch in SVG (generated deterministically from a seed — no emoji
+anywhere), soft cards, a bouncy Duolingo-style streak celebration. The whole
+brand lives in one constant: [`src/lib/brand.ts`](src/lib/brand.ts).
 
 **Stack:** Next.js (web, this repo root) + Supabase (accounts, data, video
-storage, AI verification via a Claude-vision Edge Function). A Flutter build of
-the same idea lives in [`flutter_app/`](flutter_app/).
+storage, AI). A Flutter build of the same idea lives in [`flutter_app/`](flutter_app/).
 
 ## Screens
 
 | Screen | What it does |
 |---|---|
-| **Trail** | A fog-shrouded vertical route of encounters. Each node is a beast with an always-visible difficulty rune. The awake beast is today's mission. |
-| **Encounter** | Full beast art, the real-world challenge, its tier, how it's verified, and the spoils preview. Film or upload → the Warden's Eye (AI) confirms the kill. |
-| **Spoils** | Reveals the rarity roll + coins + XP from the felled beast. |
-| **Bestiary** | Recruit new beasts with spoils; equip your hunter. Cosmetic Marks too. |
-| **Den** | Your beast, your rank bar (XP → Level), Flame, and Wards. |
-| **Rivals** | Allies ranked by longest Flame. |
-| **Allies** | Recruit allies by handle, accept requests, see the war-band's tracks. |
+| **Today** | An endless winding path of missions. Today's mission is the glowing one; tap **Start mission**. |
+| **Mission** | The buddy, the mission, its difficulty, and a clear explainer of how the AI check works. Film or upload → friendly AI gives the ✓. |
+| **Reward** | A bouncy streak celebration (flame + count + confetti) plus coins + XP. |
+| **Shop** | Unlock cute buddies and stickers with coins. |
+| **You** | Your buddy, your level bar (XP → Level), streak, coins, freezes — with plain-language explainers for every mechanic. |
+| **League** | Friends ranked by streak. |
+| **Friends** | Add friends, accept requests, see activity. |
+
+## How the AI checks your mission
+
+You film yourself doing the mission. The app grabs a few moments from your clip
+and sends them to a friendly AI (Claude vision) that confirms you gave it a go —
+and it's **deliberately generous**, so honest attempts pass. Missions are also
+**AI-generated** to only ever be things the AI can verify with confidence from a
+short video (clear, indoor, no equipment). See
+[`supabase/functions/generate-quest`](supabase/functions/generate-quest/index.ts)
+and [`supabase/functions/verify-quest`](supabase/functions/verify-quest/index.ts).
 
 ## The rules it models
 
-- **Weekly danger rhythm:** Sun/Mon/Tue = *Lesser* · Wed/Thu = *Greater* · Fri/Sat = *Dire*.
-- **Flame** (streak) with **3 Wards** (freezes) per month.
-- **Spoils** roll a rarity that multiplies coins; Dire beasts roll better odds.
-- **XP & Rank:** every felled beast grants XP (harder = more). XP raises your Rank.
-- **Verification:** simple beasts → **AI** (Claude vision on a video frame);
-  Dire action beasts → an **ally** confirms.
+- **Difficulty rhythm:** Sun/Mon/Tue = Easy · Wed/Thu = Medium · Fri/Sat = Hard.
+- **Streak** with **3 freezes** a month.
+- **Rewards** roll a rarity that multiplies coins; harder missions roll better.
+- **XP & Level:** every mission grants XP (harder = more), which levels you up.
 
-Every mechanic carries a permanent, 10-second-readable explainer in the UI
-(see the Codex section in the Den and the Bestiary header).
+Every mechanic has an always-visible, plain-language explainer in the UI
+(see the **You** tab and the mission screen).
 
 ## Run it
 
@@ -46,12 +53,18 @@ npm install
 npm run dev      # http://localhost:3000
 ```
 
-The Supabase connection details are public (publishable key; all access is gated
-by Row Level Security), so it talks to the live backend out of the box.
+The Supabase connection details are public (publishable key; access gated by Row
+Level Security), so it talks to the live backend out of the box.
 
-### Backend
+### Backend setup (for the AI features)
 
-The full schema lives in [`supabase/schema.sql`](supabase/schema.sql). XP + Levels
-were added later — apply [`supabase/migrations/0001_xp_levels.sql`](supabase/migrations/0001_xp_levels.sql)
-to an existing database (the app derives XP client-side until you do, so nothing
-breaks in the meantime).
+The full schema is in [`supabase/schema.sql`](supabase/schema.sql). Two add-ons
+were layered in via migrations — apply them to an existing database and the app
+upgrades gracefully (it falls back to safe defaults until you do):
+
+- [`supabase/migrations/0001_xp_levels.sql`](supabase/migrations/0001_xp_levels.sql) — XP + Levels.
+- [`supabase/migrations/0002_ai_quests.sql`](supabase/migrations/0002_ai_quests.sql) — AI-generated missions.
+
+Deploy the two Edge Functions and set the `ANTHROPIC_API_KEY` secret to turn on
+real AI mission generation + checking (without the key they run in a friendly
+demo mode).

@@ -1,11 +1,11 @@
 {
-  "name": "BOUNTY",
-  "short_name": "BOUNTY",
-  "description": "Hunt the day. Fell the beast.",
+  "name": "Quest",
+  "short_name": "Quest",
+  "description": "One fun mission a day.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0D0E12",
-  "theme_color": "#0D0E12",
+  "background_color": "#F4F7FF",
+  "theme_color": "#3B6EF6",
   "icons": [
     {
       "src": "/icon.svg",

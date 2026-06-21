@@ -4,7 +4,7 @@ export type NodeStatus = "completed" | "current" | "locked";
 export type Rarity = "rare" | "mega" | "ultra";
 export type MobPerk = "bonusCoins" | "streakShield" | null;
 
-/** A node on the Trail. `seed` drives its sigil-beast (no emoji). */
+/** A stop on the path. `seed` drives its buddy illustration (no emoji). */
 export interface QuestNode {
   day: number;
   title: string;
@@ -14,7 +14,7 @@ export interface QuestNode {
   status: NodeStatus;
 }
 
-/** A recruitable creature in the Bestiary. Its sigil is drawn from `id`. */
+/** A buddy you can unlock in the Shop. Its look is drawn from `id`. */
 export interface Mob {
   id: string;
   name: string;
@@ -23,7 +23,7 @@ export interface Mob {
   owned: boolean;
 }
 
-/** A cosmetic Mark. Its sigil glyph is drawn from `id`. */
+/** A cosmetic sticker. Its look is drawn from `id`. */
 export interface Accessory {
   id: string;
   name: string;
@@ -61,25 +61,25 @@ export interface FriendActivity {
   minutesAgo: number;
 }
 
-/** Difficulty → tier identity (rune colour + name). The danger language. */
+/** Difficulty → friendly label + soft colour. */
 export const TIER_META: Record<
   Difficulty,
   { tier: string; color: string; baseCoins: number }
 > = {
-  easy: { tier: "Lesser", color: "#46C26A", baseCoins: 20 },
-  medium: { tier: "Greater", color: "#E2B53C", baseCoins: 35 },
-  hard: { tier: "Dire", color: "#E5484D", baseCoins: 55 },
+  easy: { tier: "Easy", color: "#2DBE7E", baseCoins: 20 },
+  medium: { tier: "Medium", color: "#F5A524", baseCoins: 35 },
+  hard: { tier: "Hard", color: "#FF6B6B", baseCoins: 55 },
 };
 
 export const RARITY_META: Record<Rarity, { label: string; color: string }> = {
-  rare: { label: "RARE", color: "#5B8CFF" },
-  mega: { label: "MEGA", color: "#B06BFF" },
-  ultra: { label: "ULTRA", color: "#FF6A2B" },
+  rare: { label: "RARE", color: "#3B6EF6" },
+  mega: { label: "EPIC", color: "#8B5CF6" },
+  ultra: { label: "LEGENDARY", color: "#F5A524" },
 };
 
 export const PERK_LABEL: Record<NonNullable<MobPerk>, string> = {
-  bonusCoins: "+10% spoils",
-  streakShield: "1 free Ward / wk",
+  bonusCoins: "+10% coins",
+  streakShield: "1 free freeze / wk",
 };
 
 /** Weekday → difficulty. JS getDay(): 0=Sun … 6=Sat. */

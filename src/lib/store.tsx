@@ -4,12 +4,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import * as api from "./api";
 import { MOBS, ACCESSORIES } from "./catalog";
 import { XP_FOR } from "./brand";
-import { extractFrameBase64 } from "./frame";
+import { extractFramesBase64 } from "./frame";
 import {
   Accessory,
   ActivityKind,
   ChestReward,
-  difficultyForWeekday,
   Difficulty,
   Friend,
   FriendActivity,
@@ -163,19 +162,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         status: "current",
       });
     }
-    const base = new Date();
-    for (let i = 1; i <= 6; i++) {
-      const d = new Date(base);
-      d.setDate(base.getDate() + i);
-      path.push({
-        day: day++,
-        title: "Unknown beast",
-        seed: `locked-${day}`,
-        difficulty: difficultyForWeekday(d.getDay()),
-        verify: "ai",
-        status: "locked",
-      });
-    }
 
     const friends: Friend[] = board.map((r) => {
       const you = r.is_you === true;
@@ -243,14 +229,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       let verified: boolean;
       let reason: string;
       if (node && node.verify === "ai") {
-        const frame = await extractFrameBase64(file);
-        if (frame) {
-          const r = await api.verifyQuest(node.title, frame);
+        const frames = await extractFramesBase64(file, 4);
+        if (frames.length) {
+          const r = await api.verifyQuest(node.title, frames);
           verified = r.verified;
           reason = r.reason;
         } else {
           verified = true;
-          reason = "Couldn't read a frame — accepted.";
+          reason = "Couldn't read the video — counted it anyway!";
         }
       } else {
         verified = true;

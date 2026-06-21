@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { difficultyForWeekday } from "./types";
 
 let _uid: string | null = null;
 
@@ -81,10 +82,43 @@ export async function buyAccessory(accId: string, price: number): Promise<void> 
 }
 
 // ── Quests ──
-export async function ensureTodayQuest(): Promise<Row> {
-  const { data, error } = await supabase.rpc("ensure_today_quest");
+
+/** Ask the server-side AI to invent today's mission — one it can verify with
+ *  confidence from a short video. Returns a short imperative title. */
+export async function generateQuest(difficulty: string): Promise<string | null> {
+  const { data, error } = await supabase.functions.invoke("generate-quest", {
+    body: { difficulty },
+  });
   if (error) throw error;
-  return singleRow(data);
+  const title = data?.title;
+  return typeof title === "string" && title.trim() ? title.trim() : null;
+}
+
+async function rpcOrThrow(fn: string, args: Record<string, any>): Promise<any> {
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) throw error;
+  return data;
+}
+
+export async function ensureTodayQuest(): Promise<Row> {
+  try {
+    // 1. Do we already have today's mission? (AI-aware RPC; null if not yet.)
+    const existing = singleRow(await rpcOrThrow("ensure_today_quest_ai", { p_title: null }));
+    if (existing && existing.id) return existing;
+
+    // 2. Have the AI invent a mission it can verify, then store it.
+    const difficulty = difficultyForWeekday(new Date().getDay());
+    const title = await generateQuest(difficulty);
+    if (!title) throw new Error("no generated title");
+    const created = singleRow(await rpcOrThrow("ensure_today_quest_ai", { p_title: title }));
+    if (created && created.id) return created;
+    throw new Error("could not create quest");
+  } catch {
+    // Fallback so the app always works (older DB or no AI key): legacy picker.
+    const { data, error } = await supabase.rpc("ensure_today_quest");
+    if (error) throw error;
+    return singleRow(data);
+  }
 }
 
 export async function fetchCompletedQuests(): Promise<Row[]> {
@@ -109,10 +143,10 @@ export async function uploadVideo(questDate: string, file: Blob): Promise<string
 
 export async function verifyQuest(
   questTitle: string,
-  imageBase64: string,
+  imagesBase64: string[],
 ): Promise<{ verified: boolean; reason: string }> {
   const { data, error } = await supabase.functions.invoke("verify-quest", {
-    body: { questTitle, imageBase64, mimeType: "image/jpeg" },
+    body: { questTitle, imagesBase64, mimeType: "image/jpeg" },
   });
   if (error) throw error;
   return { verified: data?.verified === true, reason: String(data?.reason ?? "") };
