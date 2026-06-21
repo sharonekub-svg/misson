@@ -167,10 +167,10 @@ class Friend {
 }
 
 class FriendRequest {
-  FriendRequest({required this.name, required this.emoji, required this.mutuals});
+  FriendRequest({required this.id, required this.name, required this.emoji});
+  final String id;
   final String name;
   final String emoji;
-  final int mutuals;
 }
 
 enum ActivityKind { finished, passedYou, milestone, addedYou }

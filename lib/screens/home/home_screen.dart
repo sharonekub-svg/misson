@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/models.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -14,6 +15,7 @@ class HomeScreen extends StatelessWidget {
 
   void _openToday(BuildContext context) {
     final state = context.read<AppState>();
+    if (state.todayCompleted) return;
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => QuestDetailScreen(node: state.todayNode),
     ));
@@ -54,9 +56,11 @@ class HomeScreen extends StatelessWidget {
               right: 24,
               bottom: 18,
               child: SquishyButton(
-                label: 'DUELING GO',
-                icon: Icons.play_arrow_rounded,
-                onPressed: () => _openToday(context),
+                label: state.todayCompleted ? 'DONE FOR TODAY 🎉' : 'DUELING GO',
+                icon: state.todayCompleted
+                    ? Icons.celebration_rounded
+                    : Icons.play_arrow_rounded,
+                onPressed: state.todayCompleted ? null : () => _openToday(context),
               ),
             ),
           ],

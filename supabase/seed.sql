@@ -1,0 +1,20 @@
+-- Quest pool. Easy/medium are AI-checkable; hard action quests go to a friend.
+insert into quest_templates (title, emoji, difficulty, verify) values
+  ('Touch something blue', '🔵', 'easy', 'ai'),
+  ('Smile at the camera', '😄', 'easy', 'ai'),
+  ('Find a green leaf', '🍃', 'easy', 'ai'),
+  ('Hold up a book', '📖', 'easy', 'ai'),
+  ('Wave hello', '👋', 'easy', 'ai'),
+  ('Show something round', '⚪', 'easy', 'ai'),
+  ('Do 10 jumping jacks', '🤸', 'medium', 'ai'),
+  ('Balance on one foot', '🦩', 'medium', 'ai'),
+  ('Do a silly dance', '🕺', 'medium', 'ai'),
+  ('Make a paper plane', '✈️', 'medium', 'ai'),
+  ('Draw a star', '⭐', 'medium', 'ai'),
+  ('Stack 5 cups', '🥤', 'medium', 'ai'),
+  ('Shoot a ball in a basket', '🏀', 'hard', 'friend'),
+  ('Do 15 push-ups', '💪', 'hard', 'friend'),
+  ('Juggle 3 times', '🤹', 'hard', 'friend'),
+  ('Run up the stairs', '🏃', 'hard', 'friend'),
+  ('Hold a 30s plank', '🧘', 'hard', 'ai'),
+  ('Touch your toes 20x', '🤸', 'hard', 'ai');

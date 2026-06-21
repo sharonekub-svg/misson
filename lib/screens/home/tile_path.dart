@@ -56,6 +56,13 @@ class _TilePathState extends State<TilePath> with SingleTickerProviderStateMixin
         final points = [for (var i = 0; i < n; i++) Offset(_x(i, width), _y(i))];
         final height = _topPad + (n - 1) * _spacing + _bottomPad;
 
+        // The mob sits on the current node, or — if today is already done — on
+        // the last completed node.
+        var anchor = widget.nodes.indexWhere((q) => q.status == NodeStatus.current);
+        if (anchor == -1) {
+          anchor = widget.nodes.lastIndexWhere((q) => q.status == NodeStatus.completed);
+        }
+
         return SingleChildScrollView(
           padding: EdgeInsets.zero,
           child: SizedBox(
@@ -77,6 +84,7 @@ class _TilePathState extends State<TilePath> with SingleTickerProviderStateMixin
                       pulse: _c,
                       mobEmoji: widget.mobEmoji,
                       accessoryEmoji: widget.accessoryEmoji,
+                      showMob: i == anchor,
                       onTap: widget.nodes[i].status == NodeStatus.current
                           ? widget.onTapCurrent
                           : null,
@@ -125,6 +133,7 @@ class _Node extends StatelessWidget {
     required this.pulse,
     required this.mobEmoji,
     required this.accessoryEmoji,
+    required this.showMob,
     required this.onTap,
   });
 
@@ -132,6 +141,7 @@ class _Node extends StatelessWidget {
   final Animation<double> pulse;
   final String mobEmoji;
   final String? accessoryEmoji;
+  final bool showMob;
   final VoidCallback? onTap;
 
   static const double _d = 76; // diameter
@@ -140,10 +150,36 @@ class _Node extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (node.status) {
       case NodeStatus.completed:
-        return _circle(
+        final circle = _circle(
           fill: node.difficulty.color,
           base: _darken(node.difficulty.color),
           child: const Icon(Icons.check_rounded, color: Colors.white, size: 34),
+        );
+        if (!showMob) return circle;
+        return SizedBox(
+          width: _d,
+          height: _d,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
+            children: [
+              circle,
+              Positioned(
+                top: -58,
+                child: AnimatedBuilder(
+                  animation: pulse,
+                  builder: (context, _) => Transform.translate(
+                    offset: Offset(0, -6 * sin(pulse.value * pi)),
+                    child: MobAvatar(
+                      emoji: mobEmoji,
+                      accessoryEmoji: accessoryEmoji,
+                      size: 46,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       case NodeStatus.locked:
         return _circle(

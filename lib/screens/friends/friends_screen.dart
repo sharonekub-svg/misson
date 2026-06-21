@@ -159,7 +159,7 @@ class _RequestTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(request.name, style: AppText.label),
-                Text('${request.mutuals} mutual friends', style: AppText.caption),
+                Text('wants to be your friend', style: AppText.caption),
               ],
             ),
           ),

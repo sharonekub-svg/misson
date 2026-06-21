@@ -1,210 +1,316 @@
-import 'dart:math';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../data/api.dart';
+import '../data/catalog.dart';
 import '../models/models.dart';
 
-/// In-memory game state so the whole app is playable while we design it.
-/// Later this gets backed by Supabase (accounts, friends, streaks, videos).
+enum LoadStatus { loading, ready, error }
+
+/// Result of submitting today's quest video.
+class QuestSubmitResult {
+  QuestSubmitResult({required this.verified, required this.reason, this.reward});
+  final bool verified;
+  final String reason;
+  final ChestReward? reward;
+}
+
+/// App-wide state, hydrated from Supabase. The UI reads these fields; actions
+/// write to the backend and then [refresh].
 class AppState extends ChangeNotifier {
-  AppState() {
-    _seed();
-  }
+  final Api _api = Api();
 
-  // ── Player wallet & streak ──
-  int coins = 240;
-  int streak = 6;
-  int freezesLeft = 3; // 3 per month
+  LoadStatus status = LoadStatus.loading;
+  String? errorMessage;
 
-  // ── Path ──
+  // Wallet & streak
+  int coins = 0;
+  int streak = 0;
+  int freezesLeft = 3;
+
+  // Path
   final List<QuestNode> path = [];
+  String? todayQuestId;
+  String todayDateStr = '';
+  bool todayCompleted = false;
 
-  // ── Cosmetics ──
+  // Cosmetics
   final List<Mob> mobs = [];
   final List<Accessory> accessories = [];
   String equippedMobId = 'cat';
   String? equippedAccessoryId;
 
-  // ── Social ──
+  // Social
   final List<Friend> friends = [];
   final List<FriendRequest> requests = [];
   final List<FriendActivity> activity = [];
 
-  final _rng = Random();
-
-  // ───────────────────────── Derived ─────────────────────────
-  Mob get equippedMob => mobs.firstWhere((m) => m.id == equippedMobId);
-  Accessory? get equippedAccessory => equippedAccessoryId == null
-      ? null
-      : accessories.firstWhere((a) => a.id == equippedAccessoryId);
-
-  QuestNode get todayNode =>
-      path.firstWhere((n) => n.status == NodeStatus.current, orElse: () => path.last);
-
-  int get unreadActivity => activity.length;
+  // ── Derived ──
+  Mob get equippedMob => Catalog.mobById(equippedMobId);
+  Accessory? get equippedAccessory => Catalog.accessoryById(equippedAccessoryId);
+  QuestNode get todayNode => path.firstWhere(
+        (n) => n.status == NodeStatus.current,
+        orElse: () => path.isNotEmpty ? path.last : _placeholder(1),
+      );
   int get pendingRequests => requests.length;
 
-  // ───────────────────────── Actions ─────────────────────────
-
-  /// Roll a chest. Higher difficulty quests tilt the odds toward better rarities.
-  ChestReward rollChest(Difficulty difficulty) {
-    final r = _rng.nextDouble();
-    final bonus = switch (difficulty) {
-      Difficulty.easy => 0.0,
-      Difficulty.medium => 0.08,
-      Difficulty.hard => 0.18,
-    };
-    final Rarity rarity;
-    if (r < 0.06 + bonus) {
-      rarity = Rarity.ultra;
-    } else if (r < 0.30 + bonus * 1.5) {
-      rarity = Rarity.mega;
-    } else {
-      rarity = Rarity.rare;
-    }
-
-    var coinsWon = (difficulty.baseCoins * rarity.multiplier).round();
-    if (equippedMob.perk == MobPerk.bonusCoins) {
-      coinsWon = (coinsWon * 1.10).round();
-    }
-    return ChestReward(rarity: rarity, coins: coinsWon);
-  }
-
-  /// Apply a finished quest: bank coins, advance the path, bump the streak.
-  void completeQuest(ChestReward reward) {
-    coins += reward.coins;
-    streak += 1;
-
-    final i = path.indexWhere((n) => n.status == NodeStatus.current);
-    if (i != -1) {
-      path[i].status = NodeStatus.completed;
-      if (i + 1 < path.length) path[i + 1].status = NodeStatus.current;
+  // ───────────────────────── Lifecycle ─────────────────────────
+  Future<void> bootstrap() async {
+    status = LoadStatus.loading;
+    notifyListeners();
+    try {
+      await _api.ensureSignedIn();
+      await refresh();
+      status = LoadStatus.ready;
+    } catch (e) {
+      errorMessage = _msg(e);
+      status = LoadStatus.error;
     }
     notifyListeners();
   }
 
-  bool buyMob(Mob mob) {
-    if (mob.owned || coins < mob.price) return false;
-    coins -= mob.price;
-    mob.owned = true;
+  Future<void> refresh() async {
+    final results = await Future.wait([
+      _api.fetchProfile(),
+      _api.fetchOwnedMobs(),
+      _api.fetchOwnedAccessories(),
+      _api.fetchCompletedQuests(),
+      _api.ensureTodayQuest(),
+      _api.fetchLeaderboard(),
+      _api.fetchRequests(),
+      _api.fetchActivity(),
+    ]);
+
+    final profile = results[0] as Map<String, dynamic>;
+    final ownedMobs = (results[1] as List).cast<String>().toSet();
+    final ownedAcc = (results[2] as List).cast<String>().toSet();
+    final completed = (results[3] as List).cast<Map<String, dynamic>>();
+    final today = results[4] as Map<String, dynamic>;
+    final board = (results[5] as List).cast<Map<String, dynamic>>();
+    final reqs = (results[6] as List).cast<Map<String, dynamic>>();
+    final acts = (results[7] as List).cast<Map<String, dynamic>>();
+
+    // Profile
+    coins = profile['coins'] as int;
+    streak = profile['streak'] as int;
+    freezesLeft = profile['freezes_left'] as int;
+    equippedMobId = profile['equipped_mob_id'] as String? ?? 'cat';
+    equippedAccessoryId = profile['equipped_accessory_id'] as String?;
+
+    // Cosmetics (catalogue + ownership)
+    mobs
+      ..clear()
+      ..addAll(Catalog.mobs.map((m) => Mob(
+            id: m.id, name: m.name, emoji: m.emoji, price: m.price,
+            perk: m.perk, owned: ownedMobs.contains(m.id) || m.price == 0,
+          )));
+    accessories
+      ..clear()
+      ..addAll(Catalog.accessories.map((a) => Accessory(
+            id: a.id, name: a.name, emoji: a.emoji, price: a.price,
+            owned: ownedAcc.contains(a.id),
+          )));
+
+    _buildPath(completed, today);
+    _buildSocial(board, reqs, acts);
+
     notifyListeners();
-    return true;
   }
 
-  bool buyAccessory(Accessory acc) {
-    if (acc.owned || coins < acc.price) return false;
-    coins -= acc.price;
-    acc.owned = true;
-    notifyListeners();
-    return true;
-  }
+  // ───────────────────────── Path ─────────────────────────
+  void _buildPath(List<Map<String, dynamic>> completed, Map<String, dynamic> today) {
+    path.clear();
+    todayQuestId = today['id'] as String?;
+    todayDateStr = today['quest_date'] as String;
+    todayCompleted = today['status'] == 'completed';
 
-  void equipMob(String id) {
-    equippedMobId = id;
-    notifyListeners();
-  }
-
-  void toggleAccessory(String id) {
-    equippedAccessoryId = equippedAccessoryId == id ? null : id;
-    notifyListeners();
-  }
-
-  void acceptRequest(FriendRequest req) {
-    requests.remove(req);
-    friends.add(Friend(name: req.name, emoji: req.emoji, streak: 1));
-    _sortFriends();
-    notifyListeners();
-  }
-
-  void declineRequest(FriendRequest req) {
-    requests.remove(req);
-    notifyListeners();
-  }
-
-  void addFriendByName(String name) {
-    if (name.trim().isEmpty) return;
-    final emoji = ['🐶', '🐻', '🐘', '🐱', '🦊'][_rng.nextInt(5)];
-    friends.add(Friend(name: name.trim(), emoji: emoji, streak: _rng.nextInt(20)));
-    _sortFriends();
-    notifyListeners();
-  }
-
-  void _sortFriends() => friends.sort((a, b) => b.streak.compareTo(a.streak));
-
-  // ───────────────────────── Seed data ─────────────────────────
-  void _seed() {
-    // A winding path of upcoming quests. Difficulty follows the weekly rhythm
-    // starting from today.
-    const titles = [
-      ('Touch something blue', '🔵'),
-      ('Do 10 jumping jacks', '🤸'),
-      ('Smile at the camera', '😄'),
-      ('Find a green leaf', '🍃'),
-      ('Balance on one foot', '🦩'),
-      ('Draw a star', '⭐'),
-      ('High-five someone', '✋'),
-      ('Make a paper plane', '✈️'),
-      ('Do a silly dance', '🕺'),
-      ('Shoot a ball in a basket', '🏀'),
-      ('Stack 5 cups', '🥤'),
-      ('Pet an animal', '🐾'),
-    ];
-
-    final today = DateTime.now();
-    for (var i = 0; i < titles.length; i++) {
-      final diff = difficultyForWeekday(today.add(Duration(days: i)).weekday);
-      // Harder / action quests get friend verification; the rest are AI.
-      final verify = (diff == Difficulty.hard && i.isOdd)
-          ? VerifyKind.friend
-          : VerifyKind.ai;
+    var day = 1;
+    for (final q in completed) {
       path.add(QuestNode(
-        day: i + 1,
-        title: titles[i].$1,
-        emoji: titles[i].$2,
-        difficulty: diff,
-        verify: verify,
-        status: i == 0 ? NodeStatus.current : NodeStatus.locked,
+        day: day++,
+        title: q['title'] as String,
+        emoji: q['emoji'] as String,
+        difficulty: Difficulty.values.byName(q['difficulty'] as String),
+        verify: VerifyKind.values.byName(q['verify'] as String),
+        status: NodeStatus.completed,
       ));
     }
 
-    mobs.addAll([
-      Mob(id: 'cat', name: 'Pixel Cat', emoji: '🐱', price: 0, owned: true),
-      Mob(id: 'dog', name: 'Sunny Pup', emoji: '🐶', price: 150),
-      Mob(id: 'fox', name: 'Ember Fox', emoji: '🦊', price: 220, perk: MobPerk.bonusCoins),
-      Mob(id: 'bear', name: 'Cozy Bear', emoji: '🐻', price: 400, perk: MobPerk.streakShield),
-      Mob(id: 'panda', name: 'Bamboo Panda', emoji: '🐼', price: 320),
-      Mob(id: 'elephant', name: 'Grand Elephant', emoji: '🐘', price: 600, perk: MobPerk.bonusCoins),
-      Mob(id: 'frog', name: 'Lily Frog', emoji: '🐸', price: 180),
-      Mob(id: 'penguin', name: 'Frost Penguin', emoji: '🐧', price: 260),
-    ]);
+    if (!todayCompleted) {
+      path.add(QuestNode(
+        day: day++,
+        title: today['title'] as String,
+        emoji: today['emoji'] as String,
+        difficulty: Difficulty.values.byName(today['difficulty'] as String),
+        verify: VerifyKind.values.byName(today['verify'] as String),
+        status: NodeStatus.current,
+      ));
+    }
 
-    accessories.addAll([
-      Accessory(id: 'headphones', name: 'Headphones', emoji: '🎧', price: 80),
-      Accessory(id: 'sunglasses', name: 'Sunglasses', emoji: '🕶️', price: 70),
-      Accessory(id: 'crown', name: 'Crown', emoji: '👑', price: 200),
-      Accessory(id: 'party', name: 'Party Hat', emoji: '🎉', price: 90),
-      Accessory(id: 'bow', name: 'Bow Tie', emoji: '🎀', price: 60),
-    ]);
+    // A few locked previews of the days ahead (visual only).
+    final base = DateTime.now();
+    for (var i = 1; i <= 6; i++) {
+      path.add(QuestNode(
+        day: day++,
+        title: 'Locked',
+        emoji: '❔',
+        difficulty: difficultyForWeekday(base.add(Duration(days: i)).weekday),
+        verify: VerifyKind.ai,
+        status: NodeStatus.locked,
+      ));
+    }
+  }
 
-    friends.addAll([
-      Friend(name: 'You', emoji: '🐱', streak: streak, finishedToday: false, isYou: true),
-      Friend(name: 'Maya', emoji: '🦊', streak: 14, finishedToday: true),
-      Friend(name: 'Leo', emoji: '🐻', streak: 9, finishedToday: true),
-      Friend(name: 'Sam', emoji: '🐶', streak: 4, finishedToday: false),
-      Friend(name: 'Aria', emoji: '🐼', streak: 21, finishedToday: true),
-    ]);
-    _sortFriends();
+  QuestNode _placeholder(int day) => QuestNode(
+        day: day, title: 'Loading…', emoji: '⏳',
+        difficulty: Difficulty.easy, verify: VerifyKind.ai,
+        status: NodeStatus.locked,
+      );
 
-    requests.addAll([
-      FriendRequest(name: 'Noah', emoji: '🐧', mutuals: 3),
-      FriendRequest(name: 'Zoe', emoji: '🐸', mutuals: 1),
-    ]);
+  // ───────────────────────── Social ─────────────────────────
+  void _buildSocial(
+    List<Map<String, dynamic>> board,
+    List<Map<String, dynamic>> reqs,
+    List<Map<String, dynamic>> acts,
+  ) {
+    friends
+      ..clear()
+      ..addAll(board.map((r) {
+        final you = r['is_you'] == true;
+        return Friend(
+          name: you ? 'You' : (r['display_name'] as String? ?? 'Player'),
+          emoji: Catalog.emojiForMob(r['equipped_mob_id'] as String? ?? 'cat'),
+          streak: r['streak'] as int? ?? 0,
+          finishedToday: r['finished_today'] == true,
+          isYou: you,
+        );
+      }));
 
-    activity.addAll([
-      FriendActivity(name: 'Aria', emoji: '🐼', kind: ActivityKind.finished, detail: "finished today's quest", minutesAgo: 4),
-      FriendActivity(name: 'Maya', emoji: '🦊', kind: ActivityKind.passedYou, detail: 'passed you on the leaderboard', minutesAgo: 22),
-      FriendActivity(name: 'Leo', emoji: '🐻', kind: ActivityKind.milestone, detail: 'hit a 9-day streak 🔥', minutesAgo: 60),
-      FriendActivity(name: 'Noah', emoji: '🐧', kind: ActivityKind.addedYou, detail: 'sent you a friend request', minutesAgo: 90),
-    ]);
+    requests
+      ..clear()
+      ..addAll(reqs.map((r) => FriendRequest(
+            id: r['id'] as String,
+            name: r['name'] as String? ?? 'Someone',
+            emoji: Catalog.emojiForMob(r['mob'] as String? ?? 'cat'),
+          )));
+
+    activity
+      ..clear()
+      ..addAll(acts.map((a) => FriendActivity(
+            name: a['actor_name'] as String? ?? 'Friend',
+            emoji: a['actor_emoji'] as String? ?? '🐱',
+            kind: _activityKind(a['kind'] as String? ?? 'finished'),
+            detail: a['detail'] as String? ?? '',
+            minutesAgo: _minutesAgo(a['created_at'] as String?),
+          )));
+  }
+
+  ActivityKind _activityKind(String s) => switch (s) {
+        'passed_you' => ActivityKind.passedYou,
+        'milestone' => ActivityKind.milestone,
+        'added_you' => ActivityKind.addedYou,
+        _ => ActivityKind.finished,
+      };
+
+  int _minutesAgo(String? iso) {
+    if (iso == null) return 0;
+    final then = DateTime.tryParse(iso)?.toLocal();
+    if (then == null) return 0;
+    final m = DateTime.now().difference(then).inMinutes;
+    return m < 0 ? 0 : m;
+  }
+
+  // ───────────────────────── Quest submission ─────────────────────────
+  Future<QuestSubmitResult> submitTodayQuest(
+      Uint8List videoBytes, Uint8List? thumbBytes) async {
+    final node = todayNode;
+    final videoPath = await _api.uploadVideo(todayDateStr, videoBytes);
+
+    bool verified;
+    String reason;
+    if (node.verify == VerifyKind.ai && thumbBytes != null) {
+      final r = await _api.verifyQuest(node.title, base64Encode(thumbBytes));
+      verified = r.verified;
+      reason = r.reason;
+    } else {
+      verified = true;
+      reason = 'Confirmed by a friend';
+    }
+
+    if (!verified) {
+      return QuestSubmitResult(verified: false, reason: reason);
+    }
+
+    final row = await _api.completeQuest(todayQuestId!, videoPath, true, reason);
+    final reward = ChestReward(
+      rarity: Rarity.values.byName(row['rarity'] as String),
+      coins: row['coins_awarded'] as int,
+    );
+    await refresh();
+    return QuestSubmitResult(verified: true, reason: reason, reward: reward);
+  }
+
+  // ───────────────────────── Shop ─────────────────────────
+  Future<String?> buyMob(Mob mob) async {
+    try {
+      await _api.buyMob(mob.id, mob.price);
+      await refresh();
+      return null;
+    } catch (e) {
+      return _msg(e);
+    }
+  }
+
+  Future<String?> buyAccessory(Accessory acc) async {
+    try {
+      await _api.buyAccessory(acc.id, acc.price);
+      await refresh();
+      return null;
+    } catch (e) {
+      return _msg(e);
+    }
+  }
+
+  Future<void> equipMob(String id) async {
+    equippedMobId = id;
+    notifyListeners();
+    try {
+      await _api.equipMob(id);
+    } catch (_) {/* keep optimistic value */}
+  }
+
+  Future<void> toggleAccessory(String id) async {
+    equippedAccessoryId = equippedAccessoryId == id ? null : id;
+    notifyListeners();
+    try {
+      await _api.setEquippedAccessory(equippedAccessoryId);
+    } catch (_) {}
+  }
+
+  // ───────────────────────── Friends ─────────────────────────
+  Future<String?> addFriendByName(String username) async {
+    try {
+      await _api.sendFriendRequest(username.trim());
+      await refresh();
+      return null;
+    } catch (e) {
+      return _msg(e);
+    }
+  }
+
+  Future<void> acceptRequest(FriendRequest req) async {
+    await _api.respondRequest(req.id, true);
+    await refresh();
+  }
+
+  Future<void> declineRequest(FriendRequest req) async {
+    await _api.respondRequest(req.id, false);
+    await refresh();
+  }
+
+  String _msg(Object e) {
+    final s = e.toString();
+    return s.replaceFirst('Exception: ', '');
   }
 }

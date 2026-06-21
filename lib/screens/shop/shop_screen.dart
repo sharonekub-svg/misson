@@ -126,14 +126,16 @@ class _AccessoryGrid extends StatelessWidget {
   }
 }
 
-void _buy(BuildContext context, bool Function() action, String name) {
-  final ok = action();
-  ScaffoldMessenger.of(context)
+Future<void> _buy(
+    BuildContext context, Future<String?> Function() action, String name) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final error = await action(); // null = success
+  messenger
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: ok ? AppColors.primaryDark : AppColors.hard,
-      content: Text(ok ? 'Unlocked $name! 🎉' : 'Not enough coins yet'),
+      backgroundColor: error == null ? AppColors.primaryDark : AppColors.hard,
+      content: Text(error ?? 'Unlocked $name! 🎉'),
     ));
 }
 

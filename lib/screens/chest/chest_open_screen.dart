@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
-import '../../state/app_state.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../../widgets/squishy_button.dart';
@@ -32,8 +30,8 @@ class _ChestOpenScreenState extends State<ChestOpenScreen>
     if (_opened) return;
     setState(() => _opened = true);
     _c.forward();
-    // Bank the reward + advance the streak/path.
-    context.read<AppState>().completeQuest(widget.reward);
+    // The reward was already banked server-side when the quest was submitted;
+    // this screen just reveals it.
   }
 
   @override
