@@ -2,7 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "./api";
-import { MOBS, ACCESSORIES, emojiForMob } from "./catalog";
+import { MOBS, ACCESSORIES } from "./catalog";
+import { XP_FOR } from "./brand";
 import { extractFrameBase64 } from "./frame";
 import {
   Accessory,
@@ -24,6 +25,7 @@ interface State {
   errorMessage: string | null;
   username: string;
   coins: number;
+  xp: number;
   streak: number;
   freezesLeft: number;
   path: QuestNode[];
@@ -63,6 +65,7 @@ const initialState: State = {
   errorMessage: null,
   username: "",
   coins: 0,
+  xp: 0,
   streak: 0,
   freezesLeft: 3,
   path: [],
@@ -133,15 +136,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       owned: ownedAccSet.has(a.id),
     }));
 
-    // Build the path
+    // Build the Trail + tally XP from every felled beast.
     const path: QuestNode[] = [];
     let day = 1;
+    let xp = 0;
     for (const q of completed) {
+      const diff = q.difficulty as Difficulty;
+      xp += XP_FOR[diff] ?? 0;
       path.push({
         day: day++,
         title: q.title,
-        emoji: q.emoji,
-        difficulty: q.difficulty as Difficulty,
+        seed: q.title,
+        difficulty: diff,
         verify: q.verify as VerifyKind,
         status: "completed",
       });
@@ -151,7 +157,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       path.push({
         day: day++,
         title: today.title,
-        emoji: today.emoji,
+        seed: today.title,
         difficulty: today.difficulty as Difficulty,
         verify: today.verify as VerifyKind,
         status: "current",
@@ -163,8 +169,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       d.setDate(base.getDate() + i);
       path.push({
         day: day++,
-        title: "Locked",
-        emoji: "❔",
+        title: "Unknown beast",
+        seed: `locked-${day}`,
         difficulty: difficultyForWeekday(d.getDay()),
         verify: "ai",
         status: "locked",
@@ -175,7 +181,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const you = r.is_you === true;
       return {
         name: you ? "You" : r.display_name ?? "Player",
-        emoji: emojiForMob(r.equipped_mob_id ?? "cat"),
+        seed: r.equipped_mob_id ?? "cat",
         streak: r.streak ?? 0,
         finishedToday: r.finished_today === true,
         isYou: you,
@@ -185,12 +191,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const requests: FriendRequest[] = reqs.map((r) => ({
       id: r.id,
       name: r.name ?? "Someone",
-      emoji: emojiForMob(r.mob ?? "cat"),
+      seed: r.mob ?? "cat",
     }));
 
     const activity: FriendActivity[] = acts.map((a) => ({
       name: a.actor_name ?? "Friend",
-      emoji: a.actor_emoji ?? "🐱",
+      seed: a.actor_name ?? "Friend",
       kind: activityKind(a.kind ?? "finished"),
       detail: a.detail ?? "",
       minutesAgo: minutesAgo(a.created_at ?? null),
@@ -200,6 +206,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ...s,
       username: profile.username ?? "",
       coins: profile.coins,
+      xp: typeof profile.xp === "number" ? profile.xp : xp,
       streak: profile.streak,
       freezesLeft: profile.freezes_left,
       equippedMobId: profile.equipped_mob_id ?? "cat",
@@ -253,7 +260,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (!verified) return { verified: false, reason };
 
       const row = await api.completeQuest(cur.todayQuestId!, videoPath, true, reason);
-      const reward: ChestReward = { rarity: row.rarity as Rarity, coins: row.coins_awarded };
+      const gainedXp = node ? XP_FOR[node.difficulty] ?? 0 : 0;
+      const reward: ChestReward = {
+        rarity: row.rarity as Rarity,
+        coins: row.coins_awarded,
+        xp: typeof row.xp_awarded === "number" ? row.xp_awarded : gainedXp,
+      };
       await refresh();
       return { verified: true, reason, reward };
     },

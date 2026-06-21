@@ -3,60 +3,69 @@
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { ChestReward } from "@/lib/types";
-import { SquishyButton } from "./ui";
-import { Home } from "./Home";
-import { Shop } from "./Shop";
-import { Leaderboard } from "./Leaderboard";
-import { Friends } from "./Friends";
-import { Profile } from "./Profile";
-import { QuestOverlay } from "./QuestOverlay";
-import { ChestOverlay } from "./ChestOverlay";
+import { APP_NAME } from "@/lib/brand";
+import { Button } from "./ui";
+import { Icon, IconName } from "./Icon";
+import { Beast } from "./Beast";
+import { Trail } from "./Home";
+import { Bestiary } from "./Shop";
+import { Rivals } from "./Leaderboard";
+import { Allies } from "./Friends";
+import { Den } from "./Profile";
+import { Encounter } from "./QuestOverlay";
+import { Spoils } from "./ChestOverlay";
 
-const TABS = [
-  { key: "quest", label: "Quest", icon: "🎯" },
-  { key: "shop", label: "Shop", icon: "🛍️" },
-  { key: "league", label: "League", icon: "🏆" },
-  { key: "friends", label: "Friends", icon: "👥" },
-  { key: "you", label: "You", icon: "🐱" },
+const TABS: { key: string; label: string; icon: IconName }[] = [
+  { key: "trail", label: "Trail", icon: "trail" },
+  { key: "bestiary", label: "Bestiary", icon: "bestiary" },
+  { key: "rivals", label: "Rivals", icon: "rivals" },
+  { key: "allies", label: "Allies", icon: "allies" },
+  { key: "den", label: "Den", icon: "den" },
 ];
 
 export function AppShell() {
   const s = useStore();
   const [tab, setTab] = useState(0);
-  const [overlay, setOverlay] = useState<"quest" | "chest" | null>(null);
+  const [overlay, setOverlay] = useState<"encounter" | "spoils" | null>(null);
   const [reward, setReward] = useState<ChestReward | null>(null);
 
   if (s.status === "loading") return <Splash />;
-  if (s.status === "error") return <ErrorScreen message={s.errorMessage ?? "Something went wrong"} onRetry={s.bootstrap} />;
+  if (s.status === "error")
+    return <ErrorScreen message={s.errorMessage ?? "Something went wrong"} onRetry={s.bootstrap} />;
 
   const screens = [
-    <Home key="h" onStartQuest={() => setOverlay("quest")} />,
-    <Shop key="s" />,
-    <Leaderboard key="l" />,
-    <Friends key="f" />,
-    <Profile key="p" />,
+    <Trail key="t" onFace={() => setOverlay("encounter")} />,
+    <Bestiary key="b" />,
+    <Rivals key="r" />,
+    <Allies key="a" />,
+    <Den key="d" />,
   ];
 
   return (
     <div className="relative mx-auto flex h-[100dvh] max-w-md flex-col overflow-hidden bg-bg">
       <main className="relative min-h-0 flex-1">{screens[tab]}</main>
 
-      <nav className="flex shrink-0 items-stretch justify-around bg-surface shadow-softUp">
+      <nav className="edge relative z-10 flex shrink-0 items-stretch justify-around border-x-0 border-b-0 bg-panel">
         {TABS.map((t, i) => {
           const active = tab === i;
-          const showBadge = t.key === "friends" && s.requests.length > 0;
+          const showBadge = t.key === "allies" && s.requests.length > 0;
           return (
             <button
               key={t.key}
               onClick={() => setTab(i)}
-              className="relative flex flex-1 flex-col items-center gap-0.5 py-2.5"
+              className="relative flex flex-1 flex-col items-center gap-1 py-2.5"
             >
-              <span className={`text-xl transition ${active ? "" : "opacity-40 grayscale"}`}>{t.icon}</span>
-              <span className={`text-[11px] font-extrabold ${active ? "text-primary" : "text-inkFaint"}`}>
+              <span
+                className={`transition ${active ? "text-ember" : "text-inkFaint"}`}
+                style={active ? { filter: "drop-shadow(0 0 6px rgba(255,106,43,0.6))" } : undefined}
+              >
+                <Icon name={t.icon} size={21} strokeWidth={active ? 2.2 : 1.8} />
+              </span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${active ? "text-ember" : "text-inkFaint"}`}>
                 {t.label}
               </span>
               {showBadge && (
-                <span className="absolute right-[22%] top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-hard px-1 text-[10px] font-bold text-white">
+                <span className="absolute right-[24%] top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-ember px-1 text-[10px] font-bold text-black">
                   {s.requests.length}
                 </span>
               )}
@@ -65,17 +74,17 @@ export function AppShell() {
         })}
       </nav>
 
-      {overlay === "quest" && (
-        <QuestOverlay
+      {overlay === "encounter" && (
+        <Encounter
           onClose={() => setOverlay(null)}
-          onChest={(r) => {
+          onSpoils={(r) => {
             setReward(r);
-            setOverlay("chest");
+            setOverlay("spoils");
           }}
         />
       )}
-      {overlay === "chest" && reward && (
-        <ChestOverlay
+      {overlay === "spoils" && reward && (
+        <Spoils
           reward={reward}
           onCollect={() => {
             setReward(null);
@@ -89,24 +98,27 @@ export function AppShell() {
 
 function Splash() {
   return (
-    <div className="flex h-[100dvh] flex-col items-center justify-center bg-bg">
-      <div className="text-6xl">🎯</div>
-      <div className="mt-5 h-9 w-9 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    <div className="grain relative flex h-[100dvh] flex-col items-center justify-center bg-bg">
+      <Beast seed="cinder-splash" size={120} glow />
+      <h1 className="mt-6 font-display text-3xl font-black tracking-[0.3em] text-ink">{APP_NAME}</h1>
+      <div className="mt-6 h-8 w-8 animate-spin rounded-full border-2 border-ember border-t-transparent" />
     </div>
   );
 }
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex h-[100dvh] flex-col items-center justify-center bg-bg px-8 text-center">
-      <div className="text-5xl">😿</div>
-      <h2 className="mt-4 text-xl font-extrabold text-ink">Couldn’t connect</h2>
-      <p className="mt-2 text-sm font-semibold text-inkSoft">{message}</p>
-      <div className="mt-3 rounded-xl bg-surfaceAlt p-3.5 text-xs font-bold text-inkFaint">
+    <div className="grain relative flex h-[100dvh] flex-col items-center justify-center bg-bg px-8 text-center">
+      <span className="text-dire">
+        <Icon name="skull" size={56} strokeWidth={1.5} />
+      </span>
+      <h2 className="mt-4 font-display text-xl font-bold text-ink">The trail went cold</h2>
+      <p className="mt-2 text-sm text-inkSoft">{message}</p>
+      <div className="edge mt-3 rounded-xl bg-panel p-3.5 text-xs font-medium text-inkFaint">
         Tip: in the Supabase dashboard, enable Authentication → Providers → Anonymous sign-ins.
       </div>
       <div className="mt-6 w-48">
-        <SquishyButton label="TRY AGAIN" onClick={onRetry} icon={<span>↻</span>} />
+        <Button label="Try again" onClick={onRetry} icon="play" />
       </div>
     </div>
   );

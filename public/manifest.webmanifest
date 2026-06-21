@@ -1,10 +1,11 @@
 {
-  "name": "Up Mission",
-  "short_name": "Up Mission",
+  "name": "BOUNTY",
+  "short_name": "BOUNTY",
+  "description": "Hunt the day. Fell the beast.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F6F7FB",
-  "theme_color": "#1FC99B",
+  "background_color": "#0D0E12",
+  "theme_color": "#0D0E12",
   "icons": [
     {
       "src": "/icon.svg",

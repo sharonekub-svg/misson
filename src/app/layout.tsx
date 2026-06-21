@@ -1,21 +1,28 @@
 import type { Metadata, Viewport } from "next";
-import { Nunito } from "next/font/google";
+import { Cinzel, Inter } from "next/font/google";
 import "./globals.css";
 
-const nunito = Nunito({
+const cinzel = Cinzel({
   subsets: ["latin"],
-  weight: ["600", "700", "800"],
-  variable: "--font-nunito",
+  weight: ["600", "700", "800", "900"],
+  variable: "--font-cinzel",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
-  title: "Up Mission",
-  description: "A daily quest dueling game. Do your quest, keep your streak, grow your mob.",
+  title: "BOUNTY — Hunt the day",
+  description:
+    "A field bestiary. Every day a beast surfaces — fell it with a real-world challenge on camera, claim the spoils, keep your Flame lit.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
-    title: "Up Mission",
+    statusBarStyle: "black-translucent",
+    title: "BOUNTY",
   },
   icons: {
     icon: "/icon.svg",
@@ -24,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1FC99B",
+  themeColor: "#0D0E12",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -33,7 +40,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={nunito.variable}>
+    <html lang="en" className={`${cinzel.variable} ${inter.variable}`}>
       <body className="font-sans antialiased">{children}</body>
     </html>
   );
